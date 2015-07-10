@@ -71,7 +71,7 @@ public class Roles extends BasePage {
 
         final TreeRolePanel treePanel = new TreeRolePanel("treePanel");
         treePanel.setOutputMarkupId(true);
-        roleTabsContainer.add(treePanel);
+        add(treePanel);
 
         final RoleSummaryPanel summaryPanel = new RoleSummaryPanel.Builder("summaryPanel")
                 .window(editRoleWin).callerPageRef(Roles.this.getPageReference()).build();
@@ -85,7 +85,7 @@ public class Roles extends BasePage {
             public void onClose(final AjaxRequestTarget target) {
                 final RoleSummaryPanel summaryPanel = (RoleSummaryPanel) roleTabsContainer.get("summaryPanel");
 
-                final TreeNodeClickUpdate data = new TreeNodeClickUpdate(target,
+                final TreeNodeClick data = new TreeNodeClick(target,
                         summaryPanel == null || summaryPanel.getSelectedNode() == null
                         ? 0
                         : summaryPanel.getSelectedNode().getId());
@@ -152,25 +152,24 @@ public class Roles extends BasePage {
     public void onEvent(final IEvent<?> event) {
         super.onEvent(event);
 
-        if (event.getPayload() instanceof TreeNodeClickUpdate) {
-            final TreeNodeClickUpdate update = (TreeNodeClickUpdate) event.getPayload();
+        if (event.getPayload() instanceof TreeNodeClick) {
+            final TreeNodeClick update = (TreeNodeClick) event.getPayload();
 
             final RoleSummaryPanel summaryPanel = new RoleSummaryPanel.Builder("summaryPanel")
                     .window(editRoleWin).callerPageRef(Roles.this.getPageReference())
-                    .selectedNodeId(update.getSelectedNodeId()).build();
-
+                    .selectedNodeId(update.getSelectedNodeId()).build();            
             roleTabsContainer.addOrReplace(summaryPanel);
             update.getTarget().add(roleTabsContainer);
         }
     }
 
-    public static class TreeNodeClickUpdate {
+    public static class TreeNodeClick {
 
         private final AjaxRequestTarget target;
 
         private Long selectedNodeId;
 
-        public TreeNodeClickUpdate(final AjaxRequestTarget target, final Long selectedNodeId) {
+        public TreeNodeClick(final AjaxRequestTarget target, final Long selectedNodeId) {
             this.target = target;
             this.selectedNodeId = selectedNodeId;
         }

@@ -22,10 +22,13 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Enumeration;
 import java.util.List;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeModel;
+import javax.swing.tree.TreeNode;
+import org.apache.syncope.common.to.AbstractAttributableTO;
 import org.apache.syncope.common.to.RoleTO;
 import org.apache.syncope.console.rest.RoleRestClient;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +41,10 @@ public class RoleTreeBuilder {
     private final RoleTOComparator comparator = new RoleTOComparator();
 
     private List<RoleTO> allRoles;
+
+    private DefaultTreeModel fakerootModel;
+
+    private DefaultMutableTreeNode fakeroot;
 
     private List<RoleTO> getChildRoles(final long parentRoleId, final List<RoleTO> roles) {
         List<RoleTO> result = new ArrayList<RoleTO>();
@@ -62,28 +69,114 @@ public class RoleTreeBuilder {
         }
     }
 
+    private void populateSubtreePartially(final DefaultMutableTreeNode subRoot, final List<RoleTO> roles) {
+        RoleTO role = (RoleTO) subRoot.getUserObject();
+        subRoot.removeAllChildren();
+        DefaultMutableTreeNode child;
+        for (RoleTO subRoleTO : getChildRoles(role.getId(), roles)) {
+            child = new DefaultMutableTreeNode(subRoleTO);
+            if (subRoleTO.isSubtree()) {
+                insertFakeChild(child);
+            }
+            subRoot.add(child);
+        }
+
+    }
+
+    private void insertFakeChild(final DefaultMutableTreeNode subRoot) {
+        RoleTO roleTO = new RoleTO();
+        roleTO.setName("fakeChild");
+        roleTO.setParent(((AbstractAttributableTO) subRoot.getUserObject()).getId());
+        DefaultMutableTreeNode fakeChild = new DefaultMutableTreeNode(roleTO);
+        subRoot.add(fakeChild);
+    }
+
     public List<RoleTO> getAllRoles() {
         return this.allRoles;
     }
 
     public TreeModel build() {
-        this.allRoles = this.restClient.children(0);
-        return build(this.allRoles);
-    }
-
-    public void update(final DefaultMutableTreeNode treeNode, final long roleId) {
-        if (treeNode.getChildCount() == 0) {
-            this.allRoles.addAll(this.restClient.children(roleId));
-            populateSubtree(treeNode, this.allRoles);
+        if (this.allRoles == null) {
+            this.allRoles = this.restClient.children(0);
+            return build(this.allRoles);
+        } else {
+            fakeroot = new DefaultMutableTreeNode(new FakeRootRoleTO());
+            populateSubtree(fakeroot, this.allRoles);
+            fakerootModel = new DefaultTreeModel(fakeroot);
+            return fakerootModel;
         }
     }
 
+    public DefaultMutableTreeNode refresh(final long roleId) {
+        Enumeration nodes = getRoot().breadthFirstEnumeration();
+        boolean found = false;
+        DefaultMutableTreeNode node = null;
+        for (; nodes.hasMoreElements() && node == null;) {
+            DefaultMutableTreeNode currentNode = ((DefaultMutableTreeNode) nodes.nextElement());
+            if (((AbstractAttributableTO) currentNode.getUserObject()).getId() == roleId) {
+                node = currentNode;
+            }
+        }
+
+        if (node != null) {
+            List<RoleTO> updatedTO = this.restClient.children(((AbstractAttributableTO) node.getUserObject()).getId());
+            for(RoleTO roleTO : updatedTO){
+                if(!this.allRoles.contains(roleTO)){
+                    this.allRoles.add(roleTO);
+                }
+            }
+            populateSubtree(node, allRoles);
+        }
+        
+        return node;
+    }
+
+    public TreeNode update(final DefaultMutableTreeNode treeNode) {
+
+        if (((AbstractAttributableTO) treeNode.getUserObject()).getId() == 0) {
+            populateSubtreePartially(treeNode, allRoles);
+        } else if (((RoleTO) treeNode.getUserObject()).isSubtree()) {
+            if (getChildRoles(
+                    ((AbstractAttributableTO) treeNode.getUserObject()).getId(), allRoles).isEmpty()) {
+                this.allRoles.addAll(this.restClient.children(((AbstractAttributableTO) treeNode.getUserObject()).
+                        getId()));
+            }
+            populateSubtreePartially(treeNode, allRoles);
+        }
+        return treeNode;
+    }
+
     public TreeModel build(final List<RoleTO> roles) {
-        DefaultMutableTreeNode fakeroot = new DefaultMutableTreeNode(new FakeRootRoleTO());
+        fakeroot = new DefaultMutableTreeNode(new FakeRootRoleTO());
+        populateSubtreePartially(fakeroot, roles);
+        fakerootModel = new DefaultTreeModel(fakeroot);
+        return fakerootModel;
+    }
 
-        populateSubtree(fakeroot, roles);
+    public DefaultMutableTreeNode getRoot() {
+        return fakeroot;
+    }
 
-        return new DefaultTreeModel(fakeroot);
+    public boolean isExpandend(final DefaultMutableTreeNode parentNode) {
+        parentNode.removeAllChildren();
+        populateSubtree(parentNode, this.allRoles);
+        if (((RoleTO) parentNode.getUserObject()).isSubtree() && parentNode.children().hasMoreElements()) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    public boolean isVisible(final long roleId) {
+        Enumeration nodes = getRoot().breadthFirstEnumeration();
+        boolean found = false;
+        for (; nodes.hasMoreElements() && !found;) {
+            if (((AbstractAttributableTO) ((DefaultMutableTreeNode) nodes.nextElement()).getUserObject()).getId()
+                    == roleId) {
+                found = true;
+            }
+        }
+        return found;
     }
 
     private static class RoleTOComparator implements Comparator<RoleTO>, Serializable {

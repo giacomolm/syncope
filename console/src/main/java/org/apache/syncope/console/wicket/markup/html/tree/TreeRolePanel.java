@@ -18,12 +18,18 @@
  */
 package org.apache.syncope.console.wicket.markup.html.tree;
 
+import static org.apache.wicket.extensions.markup.html.repeater.tree.AbstractTree.State.EXPANDED;
+
+import java.util.ArrayList;
+import java.util.List;
 import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeNode;
+import org.apache.syncope.common.to.AbstractAttributableTO;
 
 import org.apache.syncope.common.to.RoleTO;
 import org.apache.syncope.console.commons.RoleTreeBuilder;
 import org.apache.syncope.console.commons.XMLRolesReader;
-import org.apache.syncope.console.pages.Roles.TreeNodeClickUpdate;
+import org.apache.syncope.console.pages.Roles.TreeNodeClick;
 import org.apache.wicket.Component;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.authroles.authorization.strategies.role.metadata.MetaDataRoleAuthorizationStrategy;
@@ -63,6 +69,11 @@ public class TreeRolePanel extends Panel {
         updateTree();
     }
 
+    private DefaultMutableTreeNode updateTree(final long selectedNodeId) {
+        DefaultMutableTreeNode parent = roleTreeBuilder.refresh(selectedNodeId);
+        return parent;
+    }
+
     private void updateTree() {
         final ITreeProvider<DefaultMutableTreeNode> treeProvider = new TreeRoleProvider(roleTreeBuilder, true);
         final DefaultMutableTreeNodeExpansionModel treeModel = new DefaultMutableTreeNodeExpansionModel();
@@ -72,11 +83,30 @@ public class TreeRolePanel extends Panel {
             private static final long serialVersionUID = 7137658050662575546L;
 
             @Override
+            public void updateBranch(DefaultMutableTreeNode parentNode, AjaxRequestTarget target) {
+                if (tree.getState(parentNode) == EXPANDED) {
+                    DefaultMutableTreeNode newParent = ((TreeRoleProvider) treeProvider).update(parentNode,
+                            roleTreeBuilder);
+                    super.updateBranch(newParent, target);
+                } else {
+                    super.updateBranch(parentNode, target);
+                }
+            }
+
+            @Override
+            public Component newSubtree(String id, IModel<DefaultMutableTreeNode> model) {
+                if (model.getObject() != null && model.getObject().isRoot()) {
+                    tree.expand(model.getObject());
+                }
+                return super.newSubtree(id, model); //To change body of generated methods, choose Tools | Templates.
+            }
+
+            @Override
             protected Component newContentComponent(final String id, final IModel<DefaultMutableTreeNode> node) {
                 final DefaultMutableTreeNode treeNode = node.getObject();
                 final RoleTO roleTO = (RoleTO) treeNode.getUserObject();
-                
-                ((TreeRoleProvider)treeProvider).update(treeNode, roleTreeBuilder,roleTO.getId());
+
+                tree.collapse(node.getObject());
 
                 return new Folder<DefaultMutableTreeNode>(id, TreeRolePanel.this.tree, node) {
 
@@ -96,27 +126,74 @@ public class TreeRolePanel extends Panel {
                     protected void onClick(final AjaxRequestTarget target) {
                         super.onClick(target);
 
-                        send(getPage(), Broadcast.BREADTH, new TreeNodeClickUpdate(target, roleTO.getId()));
+                        send(getPage(), Broadcast.BREADTH, new TreeNodeClick(target, roleTO.getId()));
                     }
                 };
             }
+
+            @Override
+            public void expand(DefaultMutableTreeNode t) {
+                super.expand(t); //To change body of generated methods, choose Tools | Templates.
+                
+                try{
+                    throw new Exception("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+                }
+                catch(Exception e){
+                    e.printStackTrace();
+                }
+            }
+            
+            
         };
         tree.add(new WindowsTheme());
-        tree.setOutputMarkupId(true);        
-        
+        tree.setOutputMarkupId(true);
+
         MetaDataRoleAuthorizationStrategy.authorize(tree, ENABLE, xmlRolesReader.getEntitlement("Roles", "read"));
 
         treeContainer.addOrReplace(tree);
     }
 
     @Override
+
     public void onEvent(final IEvent<?> event) {
         super.onEvent(event);
 
-        if (event.getPayload() instanceof TreeNodeClickUpdate) {
-            final TreeNodeClickUpdate update = (TreeNodeClickUpdate) event.getPayload();
-            updateTree();
-            update.getTarget().add(treeContainer);
+        if (event.getPayload() instanceof TreeNodeUpdate) {
+            final TreeNodeUpdate update = (TreeNodeUpdate) event.getPayload();
+            DefaultMutableTreeNode parent = updateTree(update.getSelectedNodeId());
+
+            tree.updateBranch(parent, update.getTarget());
+            Component p = tree;
+            /*for (Object node : parent.getUserObjectPath()) {
+                long id = ((AbstractAttributableTO) node).getId();
+                p = id == 0 ? p.get("") : p.get("subtree").get("branches").get(String.valueOf(id));
+            }*/
+            tree.expand(parent);
+            update.getTarget().add(this);            
+        }
+    }
+
+    public static class TreeNodeUpdate {
+
+        private final AjaxRequestTarget target;
+
+        private Long selectedNodeId;
+
+        public TreeNodeUpdate(final AjaxRequestTarget target, final Long selectedNodeId) {
+            this.target = target;
+            this.selectedNodeId = selectedNodeId;
+        }
+
+        public AjaxRequestTarget getTarget() {
+            return target;
+        }
+
+        public Long getSelectedNodeId() {
+            return selectedNodeId;
+        }
+
+        public void setSelectedNodeId(final Long selectedNodeId) {
+            this.selectedNodeId = selectedNodeId;
         }
     }
 }

@@ -27,10 +27,12 @@ import org.apache.syncope.common.util.AttributableOperations;
 import org.apache.syncope.console.commons.Constants;
 import org.apache.syncope.console.commons.Mode;
 import org.apache.syncope.console.pages.panels.RolePanel;
+import org.apache.syncope.console.wicket.markup.html.tree.TreeRolePanel.TreeNodeUpdate;
 import org.apache.wicket.PageReference;
 import org.apache.wicket.ajax.AjaxRequestTarget;
 import org.apache.wicket.ajax.markup.html.form.AjaxButton;
 import org.apache.wicket.authroles.authorization.strategies.role.metadata.MetaDataRoleAuthorizationStrategy;
+import org.apache.wicket.event.Broadcast;
 import org.apache.wicket.extensions.ajax.markup.html.IndicatingAjaxButton;
 import org.apache.wicket.extensions.ajax.markup.html.modal.ModalWindow;
 import org.apache.wicket.markup.html.basic.Label;
@@ -97,8 +99,9 @@ public class RoleModalPage extends BaseModalPage {
                     if (pageRef.getPage() instanceof BasePage) {
                         ((BasePage) pageRef.getPage()).setModalResult(true);
                     }
-
                     closeAction(target, form);
+                    send(pageRef.getPage(), Broadcast.BREADTH, new TreeNodeUpdate(target, ((RoleTO) form.
+                            getDefaultModelObject()).getParent()));
                 } catch (Exception e) {
                     error(getString(Constants.ERROR) + ": " + e.getMessage());
                     feedbackPanel.refresh(target);

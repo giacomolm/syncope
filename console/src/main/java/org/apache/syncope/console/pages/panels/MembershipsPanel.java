@@ -94,15 +94,31 @@ public class MembershipsPanel extends Panel {
 
         tree = new DefaultNestedTree<DefaultMutableTreeNode>("treeTable", treeProvider, treeModel) {
 
-            private static final long serialVersionUID = 7137658050662575546L;
+            private static final long serialVersionUID = 7137658050662575546L;            
+            
+            @Override
+            public void updateBranch(DefaultMutableTreeNode parentNode, AjaxRequestTarget target) {
+                DefaultMutableTreeNode newParent = ((TreeRoleProvider) treeProvider).
+                        update(parentNode, roleTreeBuilder);
+
+                super.updateBranch(newParent, target);
+            }
+
+            @Override
+            public Component newSubtree(String id, IModel<DefaultMutableTreeNode> model) {
+                if (model.getObject() != null && model.getObject().isRoot()) {
+                    tree.expand(model.getObject());
+                }
+                return super.newSubtree(id, model); //To change body of generated methods, choose Tools | Templates.
+            }
 
             @Override
             protected Component newContentComponent(final String id, final IModel<DefaultMutableTreeNode> node) {
                 final DefaultMutableTreeNode treeNode = node.getObject();
                 final RoleTO roleTO = (RoleTO) treeNode.getUserObject();
-                                
-                ((TreeRoleProvider)treeProvider).update(treeNode, roleTreeBuilder,roleTO.getId());                
-                
+
+                tree.collapse(node.getObject());
+
                 return new Folder<DefaultMutableTreeNode>(id, MembershipsPanel.this.tree, node) {
 
                     private static final long serialVersionUID = 9046323319920426493L;
@@ -199,7 +215,7 @@ public class MembershipsPanel extends Panel {
 
                                 RoleTO roleTO = RoleUtils.findRole(roleTreeBuilder, membershipTO.getRoleId());
                                 Set<String> resourcesToRemove = roleTO == null
-                                ? Collections.<String>emptySet() : roleTO.getResources();
+                                        ? Collections.<String>emptySet() : roleTO.getResources();
                                 if (!resourcesToRemove.isEmpty()) {
                                     Set<String> resourcesAssignedViaMembership = new HashSet<String>();
                                     for (MembershipTO membTO : userTO.getMemberships()) {

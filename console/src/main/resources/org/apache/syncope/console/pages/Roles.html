@@ -24,7 +24,7 @@ under the License.
       }
     </style>
     <script type="text/javascript">
-      $(document).ready(function() {
+      $(document).ready(function () {
         $("#roletabs").tabs();
       });
     </script>
@@ -47,9 +47,11 @@ under the License.
       </ul>
 
       <div id="tabs-tree" >
-        <div wicket:id="roleTabsContainer">
+        <div>
           <span wicket:id="treePanel"></span>
-          <span wicket:id="summaryPanel"></span>
+          <div wicket:id="roleTabsContainer">
+            <span wicket:id="summaryPanel"></span>
+          </div>
         </div>
         <div wicket:id="editRoleWin">[Show modal window for create/editing role]</div>
       </div>
